@@ -1,6 +1,12 @@
 #include <LiquidCrystal.h>
+#include "DHT.h"
 
-LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
+#define DHTPIN 13     
+#define DHTTYPE DHT11
+
+DHT dht(DHTPIN, DHTTYPE); //senzor de temperatura
+
+LiquidCrystal lcd(12, 11, 5, 4, 3, 2); //display
 
 unsigned int temp;
 int h=12;
@@ -9,43 +15,27 @@ int s=45;
 
 static uint32_t last_time, now = 0;
 
+//declarare pini bec pentru modulul L298N
+int Bpin1 = A2;
+int Bpin2 = A3;
+
 void setup()
 {
  lcd.begin(16,2);
- adc_init();
  now=millis();
-}
-
-void adc_init()
-{
-  ADCSRA |= ((1<<ADPS2)|(1<<ADPS1)|(1<<ADPS0));
-  
-  ADMUX |= (1<<REFS0);
-  ADCSRA |= (1<<ADEN);
-  ADCSRA |= (1<<ADSC);
-}
-           
-uint16_t read_adc(uint8_t channel)
-{
- ADMUX &= 0xF0;
- ADMUX |= channel;
- ADCSRA |= (1<<ADSC);
- while(ADCSRA & (1<<ADSC));
- return ADC;
+ dht.begin();
+ pinMode(Bpin1, OUTPUT);
+ pinMode(Bpin2, OUTPUT);
 }
 
 void loop()
 {
- float t, tC;
- temp=read_adc(0);
- t=float(temp*5)/1023;
- tC=float(t-0.5)*100;
+ float tC = dht.readTemperature();
  lcd.setCursor(0, 0);
  lcd.print("Temp:");
  lcd.setCursor(5, 0);
  lcd.print(tC);
- lcd.print((char)178);
- lcd.print("C");
+ lcd.print(" C");
  lcd.setCursor(0,1);
  lcd.print("Ora:");
  lcd.setCursor(4,1);
@@ -97,4 +87,6 @@ void loop()
  	{
   	 h=0;
  	}
+ digitalWrite(Bpin1, HIGH);
+ digitalWrite(Bpin2, LOW);
 }
