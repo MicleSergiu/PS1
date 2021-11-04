@@ -38,14 +38,27 @@ enum Buttons {
 enum Menus {
   MENU_MAIN = 0,
   MENU_KP,
+  MENU_KI,
+  MENU_KD,
   MENU_TEMP,
   MENU_START,
   MENU_MAX_NUM
 };
 
 double t_set = 30;
-double kp = 20;
+double kp = 1, ki = 0.1, kd = 0.1;
 float temp_q = 0;
+float last_set_temperature = 0;
+float PID_error = 0;
+float previous_error = 0;
+float elapsedTime, Time, timePrev;
+float PID_value = 0;
+int PID_p = 0;    int PID_i = 0;    int PID_d = 0;
+float last_kp = 0;
+float last_ki = 0;
+float last_kd = 0;
+
+int PID_values_fixed =0;
 Menus scroll_menu = MENU_MAIN;
 Menus current_menu =  MENU_MAIN;
 
@@ -61,6 +74,18 @@ void print_menu(enum Menus menu)
   switch(menu)
   {
     case MENU_START:
+      PID_error = t_set - tC + 3;
+      PID_p = 0.01*kp * PID_error;
+      PID_i = 0.01*PID_i + (ki * PID_error);
+
+      timePrev = Time;
+      Time = millis();
+      elapsedTime = (Time - timePrev) / 1000;
+      PID_d = 0.01*kd*((PID_error - previous_error)/elapsedTime);
+      PID_value = PID_p + PID_i + PID_d;
+
+      previous_error = PID_error;
+      
       isWorking = analogRead(A0);
       tC = dht.readTemperature();
       lcd.setCursor(0, 0);
@@ -69,8 +94,8 @@ void print_menu(enum Menus menu)
       lcd.print(tC);
       lcd.print(" C");
       lcd.setCursor(0,1);
-      lcd.print("Ora:");
-      lcd.setCursor(4,1);
+      lcd.print(PID_value);
+      /*lcd.setCursor(4,1);
       if(h<10)lcd.print("0");
       lcd.print(h);
       lcd.print(":");
@@ -78,10 +103,10 @@ void print_menu(enum Menus menu)
       lcd.print(m);
       lcd.print(":");
       if(s<10)lcd.print("0");
-      lcd.print(s);
+      lcd.print(s);*/
       Serial.println(isWorking);
-  
-      for ( int i=0 ;i<5 ;i++)
+
+      /*for ( int i=0 ;i<5 ;i++)
         {
           while ((now-last_time)<200)
             { 
@@ -117,7 +142,7 @@ void print_menu(enum Menus menu)
         if(h==24)
         {
           h=0;
-        }
+        }*/
         if(current_menu != MENU_MAIN)
           {
             lcd.setCursor(15,1);
@@ -137,6 +162,24 @@ void print_menu(enum Menus menu)
     case MENU_KP:
       lcd.print("KP = ");
       lcd.print(kp);
+      if(current_menu != MENU_MAIN)
+      {
+        lcd.setCursor(0,1);
+        lcd.print("modifica");
+      }
+      break;
+      case MENU_KI:
+      lcd.print("KI = ");
+      lcd.print(ki);
+      if(current_menu != MENU_MAIN)
+      {
+        lcd.setCursor(0,1);
+        lcd.print("modifica");
+      }
+      break;
+      case MENU_KD:
+      lcd.print("KD = ");
+      lcd.print(kd);
       if(current_menu != MENU_MAIN)
       {
         lcd.setCursor(0,1);
@@ -210,6 +253,26 @@ void dec_kp(void)
   kp--;
 }
 
+void inc_ki(void)
+{
+  ki+=0.1;
+}
+
+void dec_ki(void)
+{
+  ki-=0.1;
+}
+
+void inc_kd(void)
+{
+  kd+=0.1;
+}
+
+void dec_kd(void)
+{
+  kd-=0.1;
+}
+
 void save_temp(void)
 {
 }
@@ -228,9 +291,11 @@ void dec_temp(void)
 state_machine_handler_t* sm[MENU_MAX_NUM][EV_MAX_NUM] = 
 { //events: OK , CANCEL , NEXT, PREV
   {enter_menu, go_home, go_next, go_prev},  // MENU_MAIN
-  {go_home, go_home, inc_kp, dec_kp},       // MENU_KP
-  {go_home, go_home, inc_temp, dec_temp},   // MENU_TEMP
-  {go_home, go_home, start_program, stop_program}, //MENU_START
+  {enter_menu, go_home, inc_kp, dec_kp},       // MENU_KP
+  {enter_menu, go_home, inc_ki, dec_ki},       // MENU_KI
+  {enter_menu, go_home, inc_kd, dec_kd},       // MENU_KD
+  {enter_menu, go_home, inc_temp, dec_temp},   // MENU_TEMP
+  {enter_menu, go_home, start_program, stop_program}, //MENU_START
 };
 
 void state_machine(enum Menus menu, enum Buttons button)
@@ -280,6 +345,7 @@ void setup()
  //BUTTON_PREV
  pinMode(10, INPUT);
  digitalWrite(10, LOW);
+ Time = millis();
  Serial.begin(9600);
 }
 
@@ -291,5 +357,5 @@ void loop()
    state_machine(current_menu, event);
  }
    print_menu(scroll_menu);
- delay(1000);
+ delay(250);
 }
