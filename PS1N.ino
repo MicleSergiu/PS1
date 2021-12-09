@@ -9,13 +9,15 @@
 #define BUTTON_PREV 8
 #define BUTTON_NEXT 10
 
+#define enA 6
+
 DHT dht(DHTPIN, DHTTYPE); //senzor de temperatura
 
 LiquidCrystal lcd(12, 11, 5, 4, 3, 2); //display
 
-int h=12;
-int m=59;
-int s=45;
+int h=0;
+int m=0;
+int s=0;
 int isWorking =0;
 float tC =0;
 int ok=0;
@@ -46,14 +48,14 @@ enum Menus {
 };
 
 double t_set = 30;
-double kp = 1, ki = 0.1, kd = 0.1;
+double kp = 0.0, ki = 0.3, kd = 0.4;
 float temp_q = 0;
 float last_set_temperature = 0;
 float PID_error = 0;
 float previous_error = 0;
 float elapsedTime, Time, timePrev;
 float PID_value = 0;
-int PID_p = 0;    int PID_i = 0;    int PID_d = 0;
+float PID_p = 0;    float PID_i = 0;    float PID_d = 0;
 float last_kp = 0;
 float last_ki = 0;
 float last_kd = 0;
@@ -94,8 +96,6 @@ void print_menu(enum Menus menu)
       lcd.print(tC);
       lcd.print(" C");
       lcd.setCursor(0,1);
-      lcd.print(PID_value);
-      /*lcd.setCursor(4,1);
       if(h<10)lcd.print("0");
       lcd.print(h);
       lcd.print(":");
@@ -103,10 +103,12 @@ void print_menu(enum Menus menu)
       lcd.print(m);
       lcd.print(":");
       if(s<10)lcd.print("0");
-      lcd.print(s);*/
+      lcd.print(s);
+      lcd.setCursor(12,1);
+      lcd.print(PID_value);
       Serial.println(isWorking);
 
-      /*for ( int i=0 ;i<5 ;i++)
+      for ( int i=0 ;i<5 ;i++)
         {
           while ((now-last_time)<200)
             { 
@@ -142,18 +144,49 @@ void print_menu(enum Menus menu)
         if(h==24)
         {
           h=0;
-        }*/
+        }
         if(current_menu != MENU_MAIN)
           {
-            lcd.setCursor(15,1);
+            lcd.setCursor(15,0);
             lcd.print("M");
           }
-          if( ok & tC<t_set)
+          if( ok & PID_value<=0)
+          {
+            digitalWrite(Bpin1, HIGH);
+            digitalWrite(Bpin2, HIGH);
+            analogWrite(enA, 0);
+          }
+          else if( ok & PID_value>0.01 & PID_value<0.1)
           {
             digitalWrite(Bpin1, HIGH);
             digitalWrite(Bpin2, LOW);
+            analogWrite(enA, 50);
           }
-          else
+          else if( ok & PID_value>0.1 & PID_value<0.2)
+          {
+            digitalWrite(Bpin1, HIGH);
+            digitalWrite(Bpin2, LOW);
+            analogWrite(enA, 100);
+          }
+          else if( ok & PID_value>0.2 & PID_value<0.3)
+          {
+            digitalWrite(Bpin1, HIGH);
+            digitalWrite(Bpin2, LOW);
+            analogWrite(enA, 150);
+          }
+          else if( ok & PID_value>0.3 & PID_value<0.4)
+          {
+            digitalWrite(Bpin1, HIGH);
+            digitalWrite(Bpin2, LOW);
+            analogWrite(enA, 200);
+          }
+          else if( ok & PID_value>0.4)
+          {
+            digitalWrite(Bpin1, HIGH);
+            digitalWrite(Bpin2, LOW);
+            analogWrite(enA, 255);
+          }
+          else if( ok == 0)
           {
             digitalWrite(Bpin1, LOW);
             digitalWrite(Bpin2, LOW);
@@ -245,12 +278,12 @@ void save_kp(void)
 
 void inc_kp(void)
 {
-  kp++;
+  kp+=0.1;
 }
 
 void dec_kp(void)
 {
-  kp--;
+  kp-=0.1;
 }
 
 void inc_ki(void)
@@ -331,6 +364,7 @@ void setup()
  lcd.begin(16,2);
  now=millis();
  dht.begin();
+ pinMode(enA, OUTPUT);
  pinMode(Bpin1, OUTPUT);
  pinMode(Bpin2, OUTPUT);
  //BUTTON_OK
