@@ -15,6 +15,7 @@ DHT dht(DHTPIN, DHTTYPE); //senzor de temperatura
 
 LiquidCrystal lcd(12, 11, 5, 4, 3, 2); //display
 
+long previousMillis = 0;
 int h=0;
 int m=0;
 int s=0;
@@ -48,7 +49,7 @@ enum Menus {
 };
 
 double t_set = 30;
-double kp = 0.0, ki = 0.3, kd = 0.4;
+int kp = 90, ki = 15, kd = 80;
 float temp_q = 0;
 float last_set_temperature = 0;
 float PID_error = 0;
@@ -73,6 +74,26 @@ typedef void (state_machine_handler_t)(void);
 void print_menu(enum Menus menu)
 {
   lcd.clear();
+  long unsigned int currentMillis = millis();
+  if(currentMillis - previousMillis > 1000) 
+      {
+        previousMillis = currentMillis;  
+        s++;
+        if(s==60)
+        {
+          s=0;
+          m=m+1;
+        }
+        if(m==60)
+        {
+          m=0;
+          h=h+1;
+        }
+        if(h==24)
+        {
+          h=0;
+        }
+       }
   switch(menu)
   {
     case MENU_START:
@@ -86,7 +107,10 @@ void print_menu(enum Menus menu)
       PID_d = 0.01*kd*((PID_error - previous_error)/elapsedTime);
       PID_value = PID_p + PID_i + PID_d;
 
-      previous_error = PID_error;
+      if(PID_value < 0)
+      {    PID_value = 0;    }
+      if(PID_value > 100)  
+      {    PID_value = 255;  }
       
       isWorking = analogRead(A0);
       tC = dht.readTemperature();
@@ -104,93 +128,28 @@ void print_menu(enum Menus menu)
       lcd.print(":");
       if(s<10)lcd.print("0");
       lcd.print(s);
-      lcd.setCursor(12,1);
-      lcd.print(PID_value);
+      lcd.setCursor(10,1);
+      lcd.print(millis()/1000);
       Serial.println(isWorking);
-
-      for ( int i=0 ;i<5 ;i++)
-        {
-          while ((now-last_time)<200)
-            { 
-              now=millis();
-            }
-           last_time=now;
-           if(s==60)
-             {
-               s=0;
-               m=m+1;
-             }
-           if(m==60)
-             {
-               m=0;
-               h=h+1;
-             }
-           if(h==24)
-             {
-               h=0;
-             }  
-         }
-        s++;
-        if(s==60)
-        {
-          s=0;
-          m=m+1;
-        }
-        if(m==60)
-        {
-          m=0;
-          h=h+1;
-        }
-        if(h==24)
-        {
-          h=0;
-        }
+      
+        
         if(current_menu != MENU_MAIN)
           {
             lcd.setCursor(15,0);
             lcd.print("M");
           }
-          if( ok & PID_value<=0)
+          if(ok)
+          {
+           digitalWrite(Bpin1, HIGH);
+           digitalWrite(Bpin2, LOW); 
+           analogWrite(enA,PID_value);
+          }
+          else if(!ok)
           {
             digitalWrite(Bpin1, HIGH);
             digitalWrite(Bpin2, HIGH);
-            analogWrite(enA, 0);
           }
-          else if( ok & PID_value>0.01 & PID_value<0.1)
-          {
-            digitalWrite(Bpin1, HIGH);
-            digitalWrite(Bpin2, LOW);
-            analogWrite(enA, 50);
-          }
-          else if( ok & PID_value>0.1 & PID_value<0.2)
-          {
-            digitalWrite(Bpin1, HIGH);
-            digitalWrite(Bpin2, LOW);
-            analogWrite(enA, 100);
-          }
-          else if( ok & PID_value>0.2 & PID_value<0.3)
-          {
-            digitalWrite(Bpin1, HIGH);
-            digitalWrite(Bpin2, LOW);
-            analogWrite(enA, 150);
-          }
-          else if( ok & PID_value>0.3 & PID_value<0.4)
-          {
-            digitalWrite(Bpin1, HIGH);
-            digitalWrite(Bpin2, LOW);
-            analogWrite(enA, 200);
-          }
-          else if( ok & PID_value>0.4)
-          {
-            digitalWrite(Bpin1, HIGH);
-            digitalWrite(Bpin2, LOW);
-            analogWrite(enA, 255);
-          }
-          else if( ok == 0)
-          {
-            digitalWrite(Bpin1, LOW);
-            digitalWrite(Bpin2, LOW);
-          }
+          previous_error = PID_error;
         break;
     case MENU_KP:
       lcd.print("KP = ");
@@ -261,15 +220,11 @@ void go_prev(void)
 void start_program(void)
 {
   ok=1;
- //digitalWrite(Bpin1, HIGH);
- //digitalWrite(Bpin2, LOW);
 }
 
 void stop_program(void)
 {
   ok=0;
- //digitalWrite(Bpin1, LOW);
- //digitalWrite(Bpin2, LOW);
 }
 
 void save_kp(void)
@@ -278,32 +233,32 @@ void save_kp(void)
 
 void inc_kp(void)
 {
-  kp+=0.1;
+  kp+=1;
 }
 
 void dec_kp(void)
 {
-  kp-=0.1;
+  kp-=1;
 }
 
 void inc_ki(void)
 {
-  ki+=0.1;
+  ki+=1;
 }
 
 void dec_ki(void)
 {
-  ki-=0.1;
+  ki-=1;
 }
 
 void inc_kd(void)
 {
-  kd+=0.1;
+  kd+=1;
 }
 
 void dec_kd(void)
 {
-  kd-=0.1;
+  kd-=1;
 }
 
 void save_temp(void)
